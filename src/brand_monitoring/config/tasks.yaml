@@ -1,0 +1,33 @@
+collect_mentions_task:
+  description: >
+    Collect brand mentions for the company '{company_to_search}' focusing on keywords '{keywords_to_search}'
+    over the last 7 days. Search across general web, social media, and news platforms.
+  expected_output: >
+    A compiled list of 10-15 relevant brand mentions, including the source, a brief snippet
+    of the content, and a link for each mention.
+
+analyze_mentions_task:
+  description: >
+    Analyze the collected mentions from the previous task. Determine the overall sentiment
+    (Positive, Negative, Neutral) with percentages. Identify the top 3-5 recurring themes or topics,
+    and flag any significant negative spikes or potentially viral events.
+  expected_output: >
+    A detailed analysis report including:
+    1. A sentiment breakdown (e.g., 60% Positive, 30% Negative, 10% Neutral).
+    2. A bulleted list of the top 3-5 key topics or issues discussed.
+    3. A list of any critical alerts or mentions that require immediate attention.
+
+generate_report_task:
+  description: >
+    Generate a comprehensive brand monitoring report based on the provided analysis.
+    The report must be well-structured in markdown format. It should start with a high-level
+    summary dashboard, followed by a detailed breakdown of sentiment and key themes.
+    Conclude with a section on actionable recommendations for any detected problems.
+  expected_output: >
+    A polished, well-structured markdown report containing:
+    - **Executive Summary:** A brief overview of the findings.
+    - **Sentiment Analysis:** A breakdown of positive, negative, and neutral mentions.
+    - **Key Themes & Topics:** A summary of the main topics being discussed.
+    - **Notable Mentions:** Highlight 2-3 specific posts (positive or negative).
+    - **Actionable Recommendations:** Suggested next steps for the marketing team.
+  output_file: 'report.md'
