@@ -1,33 +1,44 @@
 collect_mentions_task:
   description: >
     Collect brand mentions for the company '{company_to_search}' focusing on keywords '{keywords_to_search}'
-    over the last 7 days. Search across general web, social media, and news platforms.
+    over the last 7 days. You MUST use the search_internet tool. Search across general web, news, Facebook, LinkedIn,
+    X (Twitter), and Reddit.
   expected_output: >
-    A compiled list of 10-15 relevant brand mentions, including the source, a brief snippet
-    of the content, and a link for each mention.
+    A comprehensive compilation of 10-20 relevant brand mentions. Each mention must include the source platform
+    (e.g., News, Web, Reddit), a snippet of the content, and a URL if available.
 
 analyze_mentions_task:
   description: >
-    Analyze the collected mentions from the previous task. Determine the overall sentiment
-    (Positive, Negative, Neutral) with percentages. Identify the top 3-5 recurring themes or topics,
-    and flag any significant negative spikes or potentially viral events.
+    Analyze the collected mentions from the previous task. Your analysis must be thorough.
+    Determine the overall sentiment (Positive, Negative, Neutral) and calculate the percentage for each.
+    Identify the top 3-5 recurring themes or topics. Finally, flag any critical negative mentions that could
+    represent a PR crisis or require immediate attention.
   expected_output: >
-    A detailed analysis report including:
-    1. A sentiment breakdown (e.g., 60% Positive, 30% Negative, 10% Neutral).
-    2. A bulleted list of the top 3-5 key topics or issues discussed.
-    3. A list of any critical alerts or mentions that require immediate attention.
+    A detailed analysis object containing:
+    1. A `sentiment_analysis` object with keys 'Positive', 'Negative', 'Neutral' and their percentage values.
+    2. A `key_themes` list with a summary of the top 3-5 topics.
+    3. A `critical_alerts` list containing any mentions that require immediate attention.
 
 generate_report_task:
   description: >
-    Generate a comprehensive brand monitoring report based on the provided analysis.
-    The report must be well-structured in markdown format. It should start with a high-level
-    summary dashboard, followed by a detailed breakdown of sentiment and key themes.
-    Conclude with a section on actionable recommendations for any detected problems.
+    Generate a final JSON object based on the provided analysis. This JSON object must contain two main keys:
+    'report_markdown' and 'chart_data'. The 'report_markdown' should be a well-structured markdown report
+    synthesizing the analysis for a marketing team. The 'chart_data' key must hold the structured data
+    for frontend visualization, including sentiment breakdown and key themes.
   expected_output: >
-    A polished, well-structured markdown report containing:
-    - **Executive Summary:** A brief overview of the findings.
-    - **Sentiment Analysis:** A breakdown of positive, negative, and neutral mentions.
-    - **Key Themes & Topics:** A summary of the main topics being discussed.
-    - **Notable Mentions:** Highlight 2-3 specific posts (positive or negative).
-    - **Actionable Recommendations:** Suggested next steps for the marketing team.
-  output_file: 'report.md'
+    A single, clean JSON object. Do NOT include any text outside of the JSON structure.
+    The JSON must look exactly like this example:
+    {
+      "report_markdown": "# Brand Monitoring Report for [Company]\n\n**Executive Summary:**\nBrief overview...\n\n**Sentiment Analysis:**\n- Positive: X%\n- Negative: Y%\n- Neutral: Z%\n\n**Key Themes & Topics:**\n- Theme 1...\n- Theme 2...\n\n**Notable Mentions:**\n- Highlight 1...\n\n**Actionable Recommendations:**\n- Recommendation 1...",
+      "chart_data": {
+        "sentiment": {
+          "Positive": X,
+          "Negative": Y,
+          "Neutral": Z
+        },
+        "themes": [
+            {"name": "Theme 1", "mentions": A},
+            {"name": "Theme 2", "mentions": B}
+        ]
+      }
+    }

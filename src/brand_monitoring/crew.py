@@ -1,8 +1,8 @@
 import os
+import json
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agent import Agent
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.brand_monitoring.tools.custom_tool import search_internet
 
@@ -15,7 +15,8 @@ class BrandMonitoringCrew():
         self.gemini_llm = LLM(
             model='gemini/gemini-2.0-flash-001',
             api_key=os.environ.get("GEMINI_API_KEY"),
-            temperature=0.0
+            temperature=0.1,
+            response_format={ "type": "json_object" }
         )
 
     @agent
