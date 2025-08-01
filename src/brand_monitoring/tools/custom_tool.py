@@ -53,6 +53,8 @@ def scrape_reddit_with_praw(query: str) -> str:
     except Exception as e:
         return f"An error occurred during Reddit scraping: {e}"
 
+def scrape_facebook(query: str) -> str:
+    return "Facebook scraping is not currently supported due to technical and policy restrictions."
 @tool
 def search_internet(query: str) -> str:
     """
