@@ -27,9 +27,9 @@ generate_report_task:
     for frontend visualization, including sentiment breakdown and key themes.
   expected_output: >
     A single, clean JSON object. Do NOT include any text outside of the JSON structure.
-    The JSON must look exactly like this example:
+    The JSON must look exactly like this example, replacing the placeholder with the correct company name:
     {
-      "report_markdown": "# Brand Monitoring Report for [Company]\n\n**Executive Summary:**\nBrief overview...\n\n**Sentiment Analysis:**\n- Positive: X%\n- Negative: Y%\n- Neutral: Z%\n\n**Key Themes & Topics:**\n- Theme 1...\n- Theme 2...\n\n**Notable Mentions:**\n- Highlight 1...\n\n**Actionable Recommendations:**\n- Recommendation 1...",
+      "report_markdown": "# Brand Monitoring Report for {company_to_search}\n\n**Executive Summary:**\nBrief overview...\n\n**Sentiment Analysis:**\n- Positive: X%\n- Negative: Y%\n- Neutral: Z%\n\n**Key Themes & Topics:**\n- Theme 1...\n- Theme 2...\n\n**Notable Mentions:**\n- Highlight 1...\n\n**Actionable Recommendations:**\n- Recommendation 1...",
       "chart_data": {
         "sentiment": {
           "Positive": X,
@@ -37,8 +37,8 @@ generate_report_task:
           "Neutral": Z
         },
         "themes": [
-            {"name": "Theme 1", "mentions": A},
-            {"name": "Theme 2", "mentions": B}
+            {"name": "Theme 1", "mentions": 10},
+            {"name": "Theme 2", "mentions": 5}
         ]
       }
     }
