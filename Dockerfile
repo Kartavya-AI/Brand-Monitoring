@@ -1,17 +1,21 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH="/app"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
 COPY requirements.txt .
-
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8080
+RUN adduser --disabled-password --gecos '' --shell /bin/bash user \
+    && chown -R user:user /app
+USER user
 
-CMD ["gunicorn", "-w", "1", "--threads", "2", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8080", "api:app"]
+ENV PORT=8080
+EXPOSE $PORT
+
+CMD exec gunicorn --bind :$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --timeout 240 api:app

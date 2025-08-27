@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+gunicorn
+crewai[tools]
+python-dotenv
+requests
+httpx
+snscrape
+praw
+pydantic
+pydantic-settings
+structlog
+asyncio-mqtt
+python-multipart
+python-dateutil
+ujson
+psutil
