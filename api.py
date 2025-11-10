@@ -397,6 +397,231 @@ async def list_tasks():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+
+@app.get("/report/{task_id}", response_class=HTMLResponse)
+async def get_analysis_report(task_id: str):
+    """Get the brand monitoring report in HTML format."""
+
+    if task_id not in analysis_tasks:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {task_id} not found"
+        )
+
+    task = analysis_tasks[task_id]
+
+    # If task is a dictionary (completed result), use it
+    if isinstance(task, dict):
+        result = task
+    else:
+        # If task is still running, wait for it to complete
+        if not task.done():
+            # Wait for completion (with timeout)
+            try:
+                result = await asyncio.wait_for(task, timeout=300)  # 5 minute timeout
+                # Store the result for future queries
+                analysis_tasks[task_id] = result
+            except asyncio.TimeoutError:
+                raise HTTPException(
+                    status_code=408,
+                    detail="Report generation is taking longer than expected. Please try again later."
+                )
+        else:
+            # Task is done, get the result
+            try:
+                result = await task
+                # Store the result for future queries
+                analysis_tasks[task_id] = result
+            except Exception as e:
+                logger.error("Error retrieving task result", task_id=task_id, error=str(e))
+                error_result = {
+                    "task_id": task_id,
+                    "status": "failed",
+                    "error": str(e),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                analysis_tasks[task_id] = error_result
+                result = error_result
+
+    # Check if the task completed successfully
+    if result.get("status") != "completed":
+        error_msg = result.get("error", "Analysis failed")
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Brand Monitoring Report - Error</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }}
+                .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                .error {{ color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 5px; border-left: 4px solid #d32f2f; }}
+                h1 {{ color: #333; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Brand Monitoring Report</h1>
+                <div class="error">
+                    <strong>Error:</strong> {error_msg}
+                </div>
+                <p>Task ID: {task_id}</p>
+                <p>Status: {result.get('status', 'unknown')}</p>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content)
+
+    # Extract the report markdown
+    report_data = result.get("result", {})
+    report_markdown = report_data.get("report_markdown", "No report available")
+
+    # Convert markdown to HTML
+    report_html = markdown.markdown(report_markdown, extensions=['tables', 'fenced_code'])
+
+    # Get chart data for visualization
+    chart_data = report_data.get("chart_data", {})
+    sentiment_data = chart_data.get("sentiment", {})
+
+    # Create sentiment chart HTML (simple bar chart using CSS)
+    sentiment_html = ""
+    if sentiment_data:
+        total = sum(sentiment_data.values())
+        if total > 0:
+            sentiment_html = """
+            <div class="sentiment-chart">
+                <h3>Sentiment Analysis</h3>
+                <div class="chart-container">
+            """
+            colors = {"Positive": "#4caf50", "Negative": "#f44336", "Neutral": "#ff9800"}
+            for sentiment, value in sentiment_data.items():
+                percentage = (value / total) * 100
+                color = colors.get(sentiment, "#2196f3")
+                sentiment_html += f"""
+                    <div class="bar">
+                        <div class="label">{sentiment}: {value}%</div>
+                        <div class="progress" style="width: {percentage}%; background-color: {color};"></div>
+                    </div>
+                """
+            sentiment_html += """
+                </div>
+            </div>
+            """
+
+    # Create the full HTML response
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Brand Monitoring Report</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                margin: 0;
+                padding: 20px;
+                background-color: #f8f9fa;
+            }}
+            .container {{
+                max-width: 1000px;
+                margin: 0 auto;
+                background: white;
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }}
+            h1, h2, h3 {{
+                color: #2c3e50;
+                margin-top: 30px;
+                margin-bottom: 15px;
+            }}
+            h1 {{
+                border-bottom: 3px solid #3498db;
+                padding-bottom: 10px;
+            }}
+            .meta-info {{
+                background: #ecf0f1;
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 20px;
+            }}
+            .sentiment-chart {{
+                margin: 30px 0;
+            }}
+            .chart-container {{
+                margin-top: 15px;
+            }}
+            .bar {{
+                margin-bottom: 10px;
+            }}
+            .label {{
+                font-weight: bold;
+                margin-bottom: 5px;
+            }}
+            .progress {{
+                height: 25px;
+                border-radius: 3px;
+                transition: width 0.3s ease;
+            }}
+            code {{
+                background: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+            }}
+            pre {{
+                background: #f4f4f4;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+            }}
+            table {{
+                border-collapse: collapse;
+                width: 100%;
+                margin: 20px 0;
+            }}
+            th, td {{
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+            }}
+            th {{
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }}
+            .footer {{
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #eee;
+                color: #666;
+                font-size: 0.9em;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="meta-info">
+                <strong>Task ID:</strong> {task_id}<br>
+                <strong>Generated:</strong> {result.get('timestamp', 'Unknown')}<br>
+                <strong>Execution Time:</strong> {result.get('execution_time_seconds', 'N/A')} seconds
+            </div>
+
+            {report_html}
+
+            {sentiment_html}
+
+            <div class="footer">
+                <p>Report generated by Brand Monitoring API v1.0.0</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html_content)
+
+
 @app.delete("/tasks/{task_id}")
 async def cancel_task(task_id: str):
     """Cancel a running analysis task."""
