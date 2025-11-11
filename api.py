@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
+import aiofiles
 import structlog
 import uvicorn
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, status
@@ -46,7 +47,42 @@ logger = structlog.get_logger(__name__)
 
 # Global variables for crew management
 crew_instance = None
-analysis_tasks = {}
+analysis_tasks: Dict[str, Any] = {}
+
+def generate_task_id() -> str:
+    """Generate a unique task ID."""
+    return f"task_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
+
+async def save_task_result(task_id: str, result: dict):
+    """Save task result in /tmp for Cloud Run persistence."""
+    try:
+        path = f"/tmp/{task_id}.json"
+        async with aiofiles.open(path, "w") as f:
+            await f.write(json.dumps(result))
+        logger.info("Saved task result", task_id=task_id)
+    except Exception as e:
+        logger.error("Failed to save task result", task_id=task_id, error=str(e))
+
+async def load_task_result(task_id: str) -> Optional[dict]:
+    """Load persisted task result."""
+    try:
+        path = f"/tmp/{task_id}.json"
+        if os.path.exists(path):
+            async with aiofiles.open(path, "r") as f:
+                data = await f.read()
+                return json.loads(data)
+    except Exception as e:
+        logger.error("Failed to load cached result", task_id=task_id, error=str(e))
+    return None
+
+def clean_json_output(text: str) -> str:
+    """Remove ```json or ``` fences from LLM output."""
+    cleaned = text.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[len("```json"):]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    return cleaned.strip()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -121,7 +157,7 @@ class BrandMonitoringRequest(BaseModel):
         description="Comma-separated keywords related to the brand"
     )
     
-    @validator('company_to_search')
+    '''@validator('company_to_search')
     def validate_company_name(cls, v):
         if not v.strip():
             raise ValueError('Company name cannot be empty')
@@ -131,7 +167,11 @@ class BrandMonitoringRequest(BaseModel):
     def validate_keywords(cls, v):
         if not v.strip():
             raise ValueError('Keywords cannot be empty')
+        return v.strip()'''
+    @validator('*')
+    def strip_fields(cls, v):
         return v.strip()
+    
 
 class BrandMonitoringResponse(BaseModel):
     """Response model for brand monitoring analysis."""
@@ -194,27 +234,31 @@ async def run_brand_monitoring_analysis(task_id: str, inputs: Dict[str, str]) ->
         # Run the crew analysis
         result = crew_instance.crew().kickoff(inputs=inputs)
         
+        raw_output = str(getattr(result, "raw", result))
+        cleaned = clean_json_output(raw_output)
+        
         # Process the result
-        if hasattr(result, 'raw'):
+        '''if hasattr(result, 'raw'):
             # Extract the raw result if it's a CrewAI result object
             processed_result = str(result.raw)
         else:
-            processed_result = str(result)
+            processed_result = str(result)'''
         
         # Try to parse as JSON if possible
         try:
-            json_result = json.loads(processed_result)
+            #json_result = json.loads(processed_result)
+            json_result = json.loads(cleaned)
         except (json.JSONDecodeError, TypeError):
             # If not valid JSON, wrap in a structured format
             json_result = {
-                "report_markdown": processed_result,
+                "report_markdown": cleaned,
                 "chart_data": {
                     "sentiment": {"Positive": 0, "Negative": 0, "Neutral": 0},
                     "themes": []
                 }
             }
         
-        execution_time = (datetime.utcnow() - start_time).total_seconds()
+        '''execution_time = (datetime.utcnow() - start_time).total_seconds()
         
         logger.info("Brand monitoring analysis completed", 
                    task_id=task_id, 
@@ -226,10 +270,23 @@ async def run_brand_monitoring_analysis(task_id: str, inputs: Dict[str, str]) ->
             "result": json_result,
             "timestamp": datetime.utcnow().isoformat(),
             "execution_time_seconds": execution_time
+        }'''
+        elapsed = (datetime.utcnow() - start).total_seconds()
+        final = {
+            "task_id": task_id,
+            "status": "completed",
+            "timestamp": datetime.utcnow().isoformat(),
+            "execution_time_seconds": elapsed,
+            "result": json_result
         }
+
+        await save_task_result(task_id, final)
+        logger.info("Analysis completed", task_id=task_id)
+        return final
+        
         
     except Exception as e:
-        execution_time = (datetime.utcnow() - start_time).total_seconds()
+        '''execution_time = (datetime.utcnow() - start_time).total_seconds()
         error_msg = str(e)
         
         logger.error("Brand monitoring analysis failed", 
@@ -244,7 +301,18 @@ async def run_brand_monitoring_analysis(task_id: str, inputs: Dict[str, str]) ->
             "error": error_msg,
             "timestamp": datetime.utcnow().isoformat(),
             "execution_time_seconds": execution_time
+        }'''
+        elapsed = (datetime.utcnow() - start).total_seconds()
+        failure = {
+            "task_id": task_id,
+            "status": "failed",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+            "execution_time_seconds": elapsed
         }
+        await save_task_result(task_id, failure)
+        logger.error("Analysis failed", task_id=task_id, error=str(e))
+        return failure
 
 # API Routes
 @app.get("/")
@@ -356,6 +424,7 @@ async def get_analysis_status(task_id: str):
         result = await task
         # Store the result for future queries
         analysis_tasks[task_id] = result
+        await save_task_result(task_id, result)
         return result
     except Exception as e:
         logger.error("Error retrieving task result", task_id=task_id, error=str(e))
