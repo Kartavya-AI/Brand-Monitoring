@@ -8,6 +8,7 @@ requests
 httpx
 snscrape
 praw
+asyncpraw
 pydantic
 pydantic-settings
 structlog
