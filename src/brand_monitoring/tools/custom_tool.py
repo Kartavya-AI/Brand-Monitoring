@@ -1,7 +1,7 @@
 import os
 import requests
 import snscrape.modules.twitter as sntwitter
-import praw
+import asyncpraw
 from datetime import datetime, timedelta
 from crewai.tools import tool
 import time
@@ -65,7 +65,7 @@ def scrape_reddit_with_praw(query: str) -> str:
         return "Warning: Reddit API credentials not found. Skipping Reddit search."
 
     try:
-        reddit = praw.Reddit(
+        reddit = asyncpraw.Reddit(
             client_id=client_id,
             client_secret=client_secret,
             user_agent=user_agent,
