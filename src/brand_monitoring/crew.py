@@ -13,7 +13,7 @@ class BrandMonitoringCrew():
 
     def __init__(self) -> None:
         self.gemini_llm = LLM(
-            model='gemini/gemini-2.0-flash-001',
+            model='gemini/gemini-2.5-flash',
             api_key=os.environ.get("GEMINI_API_KEY"),
             temperature=0.1,
             response_format={ "type": "json_object" }
